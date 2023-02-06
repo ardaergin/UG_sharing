@@ -27,6 +27,11 @@ replace.single <- function(column1, column2, value, rep.value) {
 }
 
 
+
+
+
+
+
 ############## Recode Numbers ##############
 # This is a function for recoding numbers; 
 #* It extracts number form text entries. Examples:
