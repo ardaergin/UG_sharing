@@ -1,6 +1,8 @@
 
-############## Single Replacement ##############
-replace.single <- function(column1, column2, value, rep.value) {
+########## Single Replacement ##########
+replace.single <- function(
+    column1, column2, 
+    value, rep.value) {
   
   # Number of Changes that will be made:
   a <- data %>% dplyr::filter(
@@ -30,50 +32,65 @@ replace.single <- function(column1, column2, value, rep.value) {
 
 
 
+########## Confidence Intervals ##########
+lower.CI <- function(x){
+  CI_L = mean(x) - (sd(x) * 1.96)/sqrt(length(x))
+  CI_L
+}
+upper.CI <- function(x){
+  CI_U = mean(x) + (sd(x) * 1.96)/sqrt(length(x))
+  CI_U
+}
 
 
-############## Recode Numbers ##############
-# This is a function for recoding numbers; 
-#* It extracts number form text entries. Examples:
-#* "I join for about 16 hours" is converted into "16"
-#* When people indicate "between 16-18 hours", it takes the average, so, 17.
-#* when people indicate "more than 20" its takes the exact number, 20.
 
-# IMPORTANT: 
-#* Data frame name needs to be "data"
-#* It is better if Column 2, the new column, is already initialized
+
+
+########## Recode Numbers ##########
 
 recode.numbers <- function(
-    column1, 
-    column2, # Column to be initialized
+    data,
+    column, 
     maximum) {
   
-  # Error Statement
+  ##### Error Statement #####
   if (is.numeric(maximum) == FALSE){
     stop("The 'maximum' value has to be a numeric value.")
   }
   
-  for (i in 1:nrow(data)){
+  ##### Data #####
+  new_data <- data
+  
+  
+  ##### Setup: New Column #####
+  new_column <- paste(
+    column, 
+    "recode", sep="_")
+  new_data[, new_column] <- NA
+  
+  
+  ##### Loop #####
+  for (i in 1:nrow(new_data)){
     
-    a <- as.character(data[i,column1])
+    a <- as.character(new_data[i, column])
     
     # NAs:
     if (is.na(a)) {
-      data[i,column2] <<- NA
+      new_data[i, new_column] <- NA
     }
     
     # Normal Numeric Values:
-    else if (is(tryCatch(as.numeric(a),warning=function(w) w),
+    else if (is(tryCatch(as.numeric(a),warning = function(w) w),
                 "warning")==FALSE){
       if (as.numeric(a) < maximum)
-        {data[i,column2] <<- as.numeric(a)} 
+      {new_data[i,new_column] <- as.numeric(a)} 
       else 
-        {data[i,column2] <<- NA}
+      {new_data[i,new_column] <- NA}
     }
     
     # No Numbers at all:
     else if (grepl(paste(0:9, collapse="|"), a) == FALSE)
-      {data[i,column2] <<- NA}
+    {new_data[i,new_column] <- NA}
     
     # Text that has a number within
     else if (grepl(paste(0:9, collapse="|"), a) == TRUE){
@@ -84,17 +101,17 @@ recode.numbers <- function(
         
         if(is(tryCatch(as.numeric(d[,1]),
                        warning=function(w) w), "warning")==FALSE) 
-          {data[i,column2] <<- mean(as.numeric(d[,1]))} 
+        {new_data[i,new_column] <- mean(as.numeric(d[,1]))} 
         
         else if (any(d[,1] == 0)) 
-          {data[i,column2] <<- 0}
+        {new_data[i,new_column] <- 0}
         
         else {
           d.list <- data.frame(number.range = 0:maximum)
           dist_m <- data.frame(stringdist::stringdistmatrix(d[,1], d.list$number.range))
           dist_m$minID <- apply(dist_m, 1, which.min)
           d$correct <- d.list$number.range[dist_m$minID]
-          data[i,column2] <<- mean(d$correct[d$correct > 1])
+          new_data[i,new_column] <- mean(d$correct[d$correct > 1])
         }
       }
       
@@ -106,13 +123,13 @@ recode.numbers <- function(
           
           d <- as.data.frame(strsplit(a, " "))
           if (any(d[,1]==0)) {
-            data[i,column2] <<- 0
+            new_data[i,new_column] <- 0
           } else {
             d.list <- data.frame(number.range = 0:maximum)
             dist_m <- data.frame(stringdist::stringdistmatrix(d[,1], d.list$number.range))
             dist_m$minID <- apply(dist_m, 1, which.min)
             d$correct <- d.list$number.range[dist_m$minID]
-            data[i,column2] <<- mean(d$correct[d$correct > 1])
+            new_data[i,new_column] <- mean(d$correct[d$correct > 1])
           }
         } 
         
@@ -120,13 +137,13 @@ recode.numbers <- function(
         else if (grepl(" ", paste(a), fixed = TRUE)==FALSE) {
           d <- as.data.frame(a)
           if (any(d[,1]==0)) {
-            data[i,column2] <<- 0
+            new_data[i,new_column] <- 0
           } else {
             d.list <- data.frame(number.range = 0:maximum)
             dist_m <- data.frame(stringdist::stringdistmatrix(d[,1], d.list$number.range))
             dist_m$minID <- apply(dist_m, 1, which.min)
             d$correct <- d.list$number.range[dist_m$minID]
-            data[i,column2] <<- mean(d$correct[d$correct > 1])
+            new_data[i,new_column] <- mean(d$correct[d$correct > 1])
           }
         }
       }
@@ -134,56 +151,59 @@ recode.numbers <- function(
     } # ending of: Text that has a number within
     else { NULL }
   }
+  return(new_data)
 }
 
-  
-############## Jaro-winkler Distance ##############
-# This is a function for recoding text entries; 
-
-# Compares text and checks for overlap/similarities; 
-# for example for NAME_CEI this checks 
-# if people filled out same name even with different wording 
-# (water vs waterr is counted similar) 
-
-# Data frame name needs to be "data"
-# Column 2 (destination column) needs to have already been initalized
-# Empty responses (" ") needs to have already been converted to NA's 
 
 
-############## Recode Text 1 ##############
-recode.text_1 <- function (
-    column1, column2, 
-    vector,
-    language = "english",
+########## Recode Text 1 ##########
+
+recode.text.vector <- function (
+    data,
+    column, 
+    vector, 
     JW.threshold = 0.9) {
   
-  ########## Language ##########
-  # English
-  if (language == "english") {
-    unwanted_array <- list(
-      NULL
-    )
-  }
-  # Spanish
-  if (language == "spanish") {
-    unwanted_array <- list(
-      'á'='a','à'='a',
-      'é'='e','è'='e',
-      'ò'='o','ó'='o',
-      'ù'='u','ú'='u','ü'='u',
-      'ì'='i','í'='i',
-      'ñ'='n'
-    )
-  }
+  ##### Language Fix #####
+  unwanted_array = list(
+    'Š'='S', 'š'='s', 'Ž'='Z', 'ž'='z', 
+    'À'='A', 'Á'='A', 'Â'='A', 'Ã'='A', 
+    'Ä'='A', 'Å'='A', 'Æ'='A', 'Ç'='C', 
+    'È'='E', 'É'='E','Ê'='E', 'Ë'='E', 
+    'Ì'='I', 'Í'='I', 'Î'='I', 'Ï'='I', 
+    'Ñ'='N', 'Ò'='O', 'Ó'='O', 'Ô'='O', 
+    'Õ'='O', 'Ö'='O', 'Ø'='O', 'Ù'='U',
+    'Ú'='U', 'Û'='U', 'Ü'='U', 'Ý'='Y', 
+    'Þ'='B', 'ß'='Ss', 'à'='a', 'á'='a', 
+    'â'='a', 'ã'='a', 'ä'='a', 'å'='a', 
+    'æ'='a', 'ç'='c','è'='e', 'é'='e', 
+    'ê'='e', 'ë'='e', 'ì'='i', 'í'='i', 
+    'î'='i', 'ï'='i', 'ð'='o', 'ñ'='n', 
+    'ò'='o', 'ó'='o', 'ô'='o', 'õ'='o',
+    'ö'='o', 'ø'='o', 'ù'='u', 'ú'='u', 
+    'û'='u', 'ý'='y', 'ý'='y', 'þ'='b', 
+    'ÿ'='y')
   
-  ########## Counters ##########
+  
+  ##### Counters #####
   counter.categorization_step1 <- 0
   counter.categorization_step2 <- 0
   counter.uncategorized <- 0
   counter.NA <- 0
   
   
-  ########## Setup ##########
+  ##### Setup: Data #####
+  new_data <- data
+  
+  
+  ##### Setup: New Column #####
+  new_column <- paste(
+    column, 
+    "recode", sep="_")
+  new_data[, new_column] <- NA
+  
+  
+  ##### Setup: Vector #####
   # Vector as is
   b0 <- vector
   # Vector with:
@@ -194,18 +214,18 @@ recode.text_1 <- function (
                as.vector(tolower(vector)))
   
   
-  ########## Loop ##########
-  for (i in 1:nrow(data)) {
+  ##### Loop #####
+  for (i in 1:nrow(new_data)) {
     
     # Setup
-    a0 <- as.character(data[i,column1])
+    a0 <- as.character(new_data[i, column])
     a1 <- chartr(paste(names(unwanted_array), collapse=''),
                  paste(unwanted_array, collapse=''),
-                 tolower(data[i,column1]))
+                 tolower(new_data[i, column]))
     
     # NAs
     if (is.na(a0)) {
-      data[i,column2] <<- NA
+      new_data[i, new_column] <- NA
       
       counter.NA <- counter.NA + 1
     } 
@@ -214,7 +234,7 @@ recode.text_1 <- function (
     
     # Step 1
     else if (max(jarowinkler(a0, b0)) > 0.95){
-      data[i,column2] <<- b0[which.max(jarowinkler(a0, b0))]
+      new_data[i, new_column] <- b0[which.max(jarowinkler(a0, b0))]
       
       # Counter:
       counter.categorization_step1 <- 
@@ -223,7 +243,7 @@ recode.text_1 <- function (
     
     # Step 2
     else if (max(jarowinkler(a1, b1)) > JW.threshold){
-      data[i,column2] <<- b0[which.max(jarowinkler(a1, b1))]
+      new_data[i, new_column] <- b0[which.max(jarowinkler(a1, b1))]
       
       # Counter:
       counter.categorization_step2 <- 
@@ -232,16 +252,16 @@ recode.text_1 <- function (
     
     # Rest of the answers
     else {
-      data[i,column2] <<- NA
+      new_data[i, new_column] <- NA
       
       # Counter:
       counter.uncategorized <- counter.uncategorized + 1
     }
   }
   
-  ########## Output ##########
+  ##### Output #####
   cat("=====================", "\n")
-  cat("Text Recode Output", "\n")
+  cat("Text Recode Output:", new_column, "\n")
   cat("--", "\n")
   cat(counter.NA, "cases were missing", "\n")
   cat(counter.categorization_step1, "cases were categorized on Step 1", "\n")
@@ -250,57 +270,15 @@ recode.text_1 <- function (
   cat("--", "\n")
   cat("Jaro-winkler Distance Threshold", JW.threshold, "\n")
   cat("=====================")
+  return(new_data)
 }
 
 
 
 
 
+########## Recode Text 2 ##########
 
-
-############## Recode Text 2 ##############
-recode.text.2 <- function (column1, column2, 
-                           vector1, 
-                         # fixing = TRUE,
-                         vector1.assign = NA, 
-                         # rest.assign = NULL, 
-                         vector2 = NULL,
-                         vector2.assign = NULL,
-                         j.threshold1 = 0.9,
-                         j.threshold2 = 0.9) {
-  
-  for (i in 1:nrow(data)) {
-    
-    a <- tolower(data[i,column1])
-    b <- as.vector(tolower(vector1))
-    c <- as.vector(tolower(vector2))
-    
-    # NAs
-    if (is.na(a)) {
-      data[i,column2] <<- NA
-    } 
-    
-    # First Vector to Compare
-    else if (max(jarowinkler(a, b)) > j.threshold1){
-      data[i,column2] <<- vector1.assign
-    } 
-    
-    # Second Vector to Compare
-    else if (!is.null(vector2) & 
-             max(jarowinkler(a, c)) > j.threshold2){
-      data[i,column2] <<- vector2.assign
-    } # also possible: paste(c[which.max(jarowinkler(a, c))])
-    
-    # Rest of the answers
-    else {
-      data[i,column2] <<- a
-    }
-  }
-}
-
-
-
-############## Recode Text: List Format ##############
 recode.text.list <- function (
     column1, column2, 
     List, 
@@ -342,7 +320,7 @@ recode.text.list <- function (
       # Step 1: Getting which list elements have the thing
       step1 <- lapply(tolower(List), function(y) 
         grep(b[which.max(jarowinkler(a, b))], y)
-        )
+      )
       
       # Step 2: Indexing our List Name
       step2 <- sapply(step1, function(y) 
@@ -378,14 +356,3 @@ recode.text.list <- function (
   cat("=====================")
   
 }
-
-########## Confidence Intervals ##########
-lower.CI <- function(x){
-  CI_L = mean(x) - (sd(x) * 1.96)/sqrt(length(x))
-  CI_L
-}
-upper.CI <- function(x){
-  CI_U = mean(x) + (sd(x) * 1.96)/sqrt(length(x))
-  CI_U
-}
-

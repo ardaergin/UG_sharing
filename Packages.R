@@ -3,20 +3,23 @@ library(rmdformats)
 library(extrafont)
 
 
+##### Developer #####
+library(devtools)
+library(roxygen2)
+
+
 ##### Reading/Writing Data #####
 # SPSS
 library(haven)
 library(labelled)
 # Excel
 library(readxl)
-# Better Data Tables
-library(data.table)
 
 
 ##### Data Cleaning #####
 library(tidyr); library(dplyr)
-library(memisc)
-
+library(lattice); library(memisc)
+library(data.table) # Better Data Tables
 
 ##### Plotting #####
 library(ggplot2)
@@ -26,8 +29,8 @@ library(gganimate) # Animated Graphs
 library(plotly) # 3D Graphs
 library(scales) # Date Graphs
 library(sjPlot) # Data Visualization for Social Science
-library(quantmod) # Financial Time-series Graphs
 library(qgraph) # Psychometric Data Visualization
+library(quantmod) # Financial Time-series Graphs
 
 
 ##### (Summary) Tables #####
@@ -39,7 +42,7 @@ library(skimr)
 
 ##### Data Analysis #####
 library(stats); library(psych)
-library(ltm)
+library(ltm) #
 library(lavaan)
 library(afex)
 library(MuMIn)
