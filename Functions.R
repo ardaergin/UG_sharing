@@ -51,7 +51,7 @@ upper.CI <- function(x){
 recode.numbers <- function(
     data,
     column, 
-    maximum) {
+    maximum = 999) {
   
   ##### Error Statement #####
   if (is.numeric(maximum) == FALSE){
