@@ -26,6 +26,7 @@ library(ggplot2)
 library(ggthemes)
 library(ggpubr) # 'Publication Ready Plots'
 library(gganimate) # Animated Graphs
+library(GGally)
 library(plotly) # 3D Graphs
 library(scales) # Date Graphs
 library(sjPlot) # Data Visualization for Social Science
@@ -58,3 +59,7 @@ library(mediation)
 library(MBESS)
 library(caTools)
 library(zoo) # Time Series
+library(GPArotation)
+library(psycho)
+library(report)
+
