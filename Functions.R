@@ -358,135 +358,6 @@ recode.text.list <- function (
 }
 
 
-########## Loadings Plot ##########
-loading.plot <- function(
-    data, 
-    model) {
-  
-  pairs(model$loadings, 
-        col = 1:ncol(data), 
-        upper.panel = NULL, 
-        main = "Factor Loadings")
-  par(xpd = TRUE) 
-  legend('topright', 
-         bty = 'n',
-         pch = 'o', 
-         col = 1:ncol(behave), 
-         attr(model$loadings, 'dimnames')[[1]], 
-         title = "Variables",
-         cex = 0.6)
-}
-
-
-########## Best Fit ##########
-investigate.fit <- function(
-    data, 
-    from = 1, to = 5,
-    rotation,
-    items.named = FALSE){
-  
-  # Correlation Matrix
-  corr_matrix <- stats::cor(data_fa)
-  
-  # Data Frame
-  df <- as.data.frame(matrix(nrow = 4,
-                             ncol = length(from:to)))
-  colnames(df) <- paste(seq(from, to),"Factor")
-  rownames(df) <- c("RMSEA","BIC","STATISTIC","PVAL")
-  
-  # Loop
-  for (i in from:to){
-    
-    # Model Name
-    model_name <- paste("Exploratory Model:", 
-                        i, "Factors",
-                        sep = " ")
-    
-    # Model
-    EXPLORATORY <- psych::fa(
-      r = corr_matrix,
-      nfactor = i,
-      n.obs = nrow(data),
-      fm = 'ml', rotate = rotation)
-    
-    # Plotting
-    load <- as.data.frame(
-      loadings(EXPLORATORY)[, from:i])
-    colnames(load) <- colnames(loadings(EXPLORATORY))
-    
-    if(items.named == FALSE) {
-      item.names <- paste(
-        "Item", 1:ncol(data),
-        sep = "_")
-      load$Item <- item.names
-    } else if (items.named == TRUE) {
-      load$Item <- colnames(data)
-    }
-    
-    loadings.m <- reshape2::melt(
-      load, 
-      id = "Item", 
-      measure = paste("ML", 
-                      from:i, 
-                      sep=""), 
-      variable.name = "Factor", 
-      value.name = "Loading")
-    
-    ##### Loading Plot 1 #####
-    
-    print(
-    ggplot(loadings.m, aes(Item, abs(Loading), fill=Loading)) + 
-      facet_wrap(~ Factor, nrow = 1) + # placing the factors in separate facets
-      geom_bar(stat="identity") + # making the bars
-      coord_flip() + #flip the axes so the test names can be horizontal  
-      # define the fill color gradient: blue = positive, red = negative
-      scale_fill_gradient2(name = "Loading", 
-                           high = "blue", mid = "grey92", low = "red", 
-                           midpoint = 0, guide = "none") +
-      ylab("Loading Strength") + #improve y-axis label
-      theme_bw(base_size = 10) + 
-      labs(title = bquote("Loadings for" ~ bold(.(paste(model_name)))))
-    )
-    
-    ##### Loading Plot 2 #####
-    if(i != 1) {
-      print(
-      ggplot(loadings.m, 
-             aes(Item, 
-                 abs(Loading), 
-                 fill = Factor)) + 
-        geom_bar(stat = "identity") + coord_flip() + 
-        ylab("Loading Strength") + theme_bw(base_size = 10) + 
-        #remove labels and tweak margins for combining with the correlation matrix plot
-        theme(axis.text.y = element_blank(), 
-              axis.title.y = element_blank(), 
-              plot.margin = unit(c(3,1,39,-3), "mm")) + 
-        labs(title = bquote("Loadings for" ~ bold(.(paste(model_name)))))
-      )
-    }
-    
-    # The Data Frame
-    if (is.null(EXPLORATORY[["RMSEA"]][1])) {
-      warning(paste(i,"-Factor model does not make sense, returning NA column."))
-    } else {
-      df[1,i] <- EXPLORATORY[["RMSEA"]][1]
-      df[2,i] <- EXPLORATORY[["BIC"]]
-      df[3,i] <- EXPLORATORY[["STATISTIC"]]
-      rownames(df)[3] <- "Chi_squared"
-      df[4,i] <- EXPLORATORY[["PVAL"]]
-      rownames(df)[4] <- "P_value"
-    }
-  }
-  
-  df.round <- data.frame(lapply(df, round, 3))
-  rownames(df.round) <- rownames(df)
-  colnames(df.round) <- colnames(df)
-  return(knitr::kable(df) %>% 
-           kableExtra::kable_styling())
-}
-
-
-
 ##### Reliability #####
 
 # Either putting a vector of many scales
@@ -578,71 +449,175 @@ create.formula <- function(
   
 }
 
+########## Loadings Plot ##########
+loading.plot <- function(
+    data, 
+    model) {
+  
+  pairs(model$loadings, 
+        col = 1:ncol(data), 
+        upper.panel = NULL, 
+        main = "Factor Loadings")
+  par(xpd = TRUE) 
+  legend('topright', 
+         bty = 'n',
+         pch = 'o', 
+         col = 1:ncol(behave), 
+         attr(model$loadings, 'dimnames')[[1]], 
+         title = "Variables",
+         cex = 0.6)
+}
 
 
-formulize[1] <- paste(names(fa_items[5]), "=~", 
-                      paste0(
-                        names(data_fa[,fa_items$engage_when_benefit]), 
-                        collapse = " + "))
+########## Best Fit ##########
+investigate.efa <- function(
+    data, 
+    from = 1, to = 5,
+    rotation,
+    items.named = FALSE){
+  
+  # Correlation Matrix
+  corr_matrix <- stats::cor(data_fa)
+  
+  # Data Frame
+  df <- as.data.frame(matrix(nrow = 4,
+                             ncol = length(from:to)))
+  colnames(df) <- paste(seq(from, to),"Factor")
+  rownames(df) <- c("RMSEA","BIC","STATISTIC","PVAL")
+  
+  # Loop
+  for (i in from:to){
+    
+    # Model Name
+    model_name <- paste("Exploratory Model:", 
+                        i, "Factors",
+                        sep = " ")
+    
+    # Model
+    EXPLORATORY <- psych::fa(
+      r = corr_matrix,
+      nfactor = i,
+      n.obs = nrow(data),
+      fm = 'ml', rotate = rotation)
+    
+    # Plotting
+    load <- as.data.frame(
+      loadings(EXPLORATORY)[, from:i])
+    colnames(load) <- colnames(loadings(EXPLORATORY))
+    
+    if(items.named == FALSE) {
+      item.names <- paste(
+        "Item", 1:ncol(data),
+        sep = "_")
+      load$Item <- item.names
+    } else if (items.named == TRUE) {
+      load$Item <- colnames(data)
+    }
+    
+    loadings.m <- reshape2::melt(
+      load, 
+      id = "Item", 
+      measure = paste("ML", 
+                      from:i, 
+                      sep=""), 
+      variable.name = "Factor", 
+      value.name = "Loading")
+    
+    ##### Loading Plot 1 #####
+    
+    print(
+      ggplot(loadings.m, aes(Item, abs(Loading), fill=Loading)) + 
+        facet_wrap(~ Factor, nrow = 1) + # placing the factors in separate facets
+        geom_bar(stat="identity") + # making the bars
+        coord_flip() + #flip the axes so the test names can be horizontal  
+        # define the fill color gradient: blue = positive, red = negative
+        scale_fill_gradient2(name = "Loading", 
+                             high = "blue", mid = "grey92", low = "red", 
+                             midpoint = 0, guide = "none") +
+        ylab("Loading Strength") + #improve y-axis label
+        theme_bw(base_size = 10) + 
+        labs(title = bquote("Loadings for" ~ bold(.(paste(model_name)))))
+    )
+    
+    ##### Loading Plot 2 #####
+    if(i != 1) {
+      print(
+        ggplot(loadings.m, 
+               aes(Item, 
+                   abs(Loading), 
+                   fill = Factor)) + 
+          geom_bar(stat = "identity") + coord_flip() + 
+          ylab("Loading Strength") + theme_bw(base_size = 10) + 
+          #remove labels and tweak margins for combining with the correlation matrix plot
+          theme(axis.text.y = element_blank(), 
+                axis.title.y = element_blank(), 
+                plot.margin = unit(c(3,1,39,-3), "mm")) + 
+          labs(title = bquote("Loadings for" ~ bold(.(paste(model_name)))))
+      )
+    }
+    
+    # The Data Frame
+    if (is.null(EXPLORATORY[["RMSEA"]][1])) {
+      warning(paste(i,"-Factor model does not make sense, returning NA column."))
+    } else {
+      df[1,i] <- EXPLORATORY[["RMSEA"]][1]
+      df[2,i] <- EXPLORATORY[["BIC"]]
+      df[3,i] <- EXPLORATORY[["STATISTIC"]]
+      rownames(df)[3] <- "Chi_squared"
+      df[4,i] <- EXPLORATORY[["PVAL"]]
+      rownames(df)[4] <- "P_value"
+    }
+  }
+  
+  df.round <- data.frame(lapply(df, round, 3))
+  rownames(df.round) <- rownames(df)
+  colnames(df.round) <- colnames(df)
+  return(knitr::kable(df) %>% 
+           kableExtra::kable_styling())
+}
 
-formulize[2] <- paste(names(fa_items[5]), "=~", 
-                      paste0(
-                        names(data_fa[,fa_items$engage_when_benefit]), 
-                        collapse = " + "))
 
+########## CFA ##########
 
-
-collapse(formulize)
-
-list[elements[1]]
-
-sapply()
-paste(sep = " \n ",
-      paste(names(fa_items[5]), "=~", 
-            paste0(
-              names(data_fa[,fa_items$engage_when_benefit]), 
-              collapse = " + ")),
-      paste(names(fa_items[6]), "=~",
-            paste0(
-              names(data_fa[,fa_items$participate_together]), 
-              collapse = " + ")),
-      paste(names(fa_items[7]), "=~",
-            paste0(
-              names(data_fa[,fa_items$initative]), 
-              collapse = " + ")),
-      paste(names(fa_items[2]), "=~", 
-            paste0(
-              names(data_fa[,fa_items$environmental]), 
-              collapse = " + ")),
-      paste(names(fa_items[1]), "=~", 
-            paste0(
-              names(data_fa[,fa_items$financial]), 
-              collapse = " + "))
-      
-
-as.vector(unlist(fa_items[5]))
-
-simple.2 <- paste(sep = " \n ",
-                  paste(names(fa_items[5]), "=~", 
-                        paste0(
-                          names(data_fa[,fa_items$engage_when_benefit]), 
-                          collapse = " + ")),
-                  paste(names(fa_items[6]), "=~",
-                        paste0(
-                          names(data_fa[,fa_items$participate_together]), 
-                          collapse = " + ")),
-                  paste(names(fa_items[7]), "=~",
-                        paste0(
-                          names(data_fa[,fa_items$initative]), 
-                          collapse = " + ")),
-                  paste(names(fa_items[2]), "=~", 
-                        paste0(
-                          names(data_fa[,fa_items$environmental]), 
-                          collapse = " + ")),
-                  paste(names(fa_items[1]), "=~", 
-                        paste0(
-                          names(data_fa[,fa_items$financial]), 
-                          collapse = " + "))
-)
-
-
+investigate.cfa <- function(
+    data, 
+    model, 
+    models = FALSE) {
+  
+  if(models == FALSE) {
+    # Name
+    nam <- paste(
+      "FITCFA", 
+      deparse(substitute(model)), 
+      sep = "_")
+    # CFA
+    assign(
+      nam,
+      lavaan::cfa(
+        model = model, 
+        data = data, 
+        sample.nobs = nrow(data)),
+      envir = parent.env(environment())
+    )
+  }
+  
+  else if (models == TRUE) {
+    # Names
+    nam <- character()
+    for (i in 1:length(model)){
+      nam[i] <- paste(
+        "FITCFA", "model", i,
+        sep = "_")
+    }
+    
+    results <- sapply(
+      model, function(model) {
+        lavaan::cfa(
+          model = model, 
+          data = data, 
+          sample.nobs = nrow(data))
+      })
+    names(results) <- nam
+    return(results)
+  }
+}
