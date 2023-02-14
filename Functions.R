@@ -161,7 +161,8 @@ recode.numbers <- function(
 recode.text.vector <- function (
     data,
     column, 
-    vector, 
+    x, 
+    Listing = FALSE,
     JW.threshold = 0.9) {
   
   ##### Language Fix #####
@@ -204,19 +205,35 @@ recode.text.vector <- function (
   
   
   ##### Setup: Vector #####
-  # Vector as is
-  b0 <- vector
-  # Vector with:
-  #* 1 - Lower case, 
-  #* 2 - Special characters removed
-  b1 <- chartr(paste(names(unwanted_array), collapse=''),
-               paste(unwanted_array, collapse=''),
-               as.vector(tolower(vector)))
+  if (Listing == FALSE) {
+    # Vector as is
+    b0 <- x
+    # Vector with:
+    #* 1 - Lower case, 
+    #* 2 - Special characters removed
+    b1 <- chartr(
+      paste(names(unwanted_array), collapse=''),
+      paste(unwanted_array, collapse=''),
+      as.vector(tolower(x)))
+  }
   
+  
+  ##### Setup: List #####
+  if (Listing == TRUE) {
+    # List as is
+    b0 <- unlist(x, use.names=FALSE)
+    # List with:
+    #* 1 - Lower case, 
+    #* 2 - Special characters removed
+    b1 <- chartr(
+      paste(names(unwanted_array), collapse=''),
+      paste(unwanted_array, collapse=''),
+      as.vector(tolower(unlist(x, use.names=FALSE))))
+  }
   
   ##### Loop #####
   for (i in 1:nrow(new_data)) {
-    
+
     # Setup
     a0 <- as.character(new_data[i, column])
     a1 <- chartr(paste(names(unwanted_array), collapse=''),
@@ -230,20 +247,55 @@ recode.text.vector <- function (
       counter.NA <- counter.NA + 1
     } 
     
+      
     # Vector to Compare
     
     # Step 1
     else if (max(jarowinkler(a0, b0)) > 0.95){
-      new_data[i, new_column] <- b0[which.max(jarowinkler(a0, b0))]
+      if (Listing == FALSE) {
+        new_data[i, new_column] <- b0[which.max(jarowinkler(a0, b0))]
+      }
+      
+      if (Listing == TRUE){
+        # Step 1: Getting which list elements have the thing
+        step1 <- lapply(x, function(y) 
+          grep(b0[which.max(jarowinkler(a0, b0))], y)
+        ) 
+        
+        # Step 2: Indexing our List Name
+        step2 <- sapply(step1, function(y) 
+          length(y) > 0)
+        
+        # Step 3: Assigning
+        new_data[i,new_column] <- names(x[which(step2)])
+        }
       
       # Counter:
       counter.categorization_step1 <- 
         counter.categorization_step1 + 1
-    } 
+    }
+     
     
     # Step 2
     else if (max(jarowinkler(a1, b1)) > JW.threshold){
-      new_data[i, new_column] <- b0[which.max(jarowinkler(a1, b1))]
+      
+      if (Listing == FALSE) {
+        new_data[i, new_column] <- b0[which.max(jarowinkler(a1, b1))]
+      }
+      
+      if (Listing == TRUE) {
+        # Step 1: Getting which list elements have the thing
+        step1 <- lapply(x, function(y) 
+          grep(b0[which.max(jarowinkler(a1, b1))], y)
+        )
+        
+        # Step 2: Indexing our List Name
+        step2 <- sapply(step1, function(y) 
+          length(y) > 0)
+        
+        # Step 3: Assigning
+        new_data[i,new_column] <- names(x[which(step2)])
+      }
       
       # Counter:
       counter.categorization_step2 <- 
@@ -280,37 +332,46 @@ recode.text.vector <- function (
 ########## Recode Text 2 ##########
 
 recode.text.list <- function (
-    column1, column2, 
+    data,
+    column, 
     List, 
     Excluding.Vector = NULL,
     JW.threshold_List = 0.85,
     JW.threshold_Excluding = 0.85) {
   
-  # Counters for the Output:
+  ##### Counters #####
   counter.exclusion <- 0
   counter.categorization <- 0
   counter.uncategorized <- 0
   counter.NA <- 0
   
-  # Setup Outside the for loop:
-  b <- as.vector(tolower(unlist(List,use.names=FALSE)))
-  c <- as.vector(tolower(Excluding.Vector))
   
+  ##### Setup: New Column #####
+  new_column <- paste(
+    column, 
+    "recode", sep="_")
+  data[, new_column] <- NA
+  
+  ##### Setup: Vector #####
+  b <- as.vector(tolower(unlist(x, use.names=FALSE)))
+  # c <- as.vector(tolower(Excluding.Vector))
+  
+  ##### Loop #####
   for (i in 1:nrow(data)) {
     
     # Setup inside the for loop:
-    a <- tolower(data[i,column1])
+    a <- tolower(data[i, column])
     
     # NAs
     if (is.na(a)) {
-      data[i,column2] <<- NA
+      data[i, new_column] <- NA
       counter.NA <- counter.NA + 1
     } 
     
     # Excluding Vector
     else if (!is.null(Excluding.Vector) & 
              max(RecordLinkage::jarowinkler(a, c)) > JW.threshold_Excluding){
-      data[i,column2] <<- NA
+      data[i, new_column] <- NA
       counter.exclusion <- counter.exclusion + 1
     }
     
@@ -327,19 +388,21 @@ recode.text.list <- function (
         length(y) > 0)
       
       # Step 3: Assigning
-      data[i,column2] <<- names(List[which(step2)])
+      data[i,new_column] <- names(List[which(step2)])
       
       counter.categorization <- counter.categorization + 1
     }
     
     # Rest of the answers
     else {
-      data[i,column2] <<- NA
+      data[i,new_column] <- NA
       
       counter.uncategorized <- counter.uncategorized + 1
     }
   }
+  return(data)
   
+  ##### Output #####
   cat("=====================", "\n")
   cat("Text Recode Output", "\n")
   cat("--", "\n")
