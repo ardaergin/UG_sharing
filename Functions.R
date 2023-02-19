@@ -30,6 +30,78 @@ replace.single <- function(
 
 
 
+########## Multiple Replacement ##########
+
+
+replace.multiple <- function(
+    data,
+    column1, column2,
+    vector, rep.value) {
+  
+  vector = meaningless
+  rep.value = NA
+  data = data
+  column1 = "RENT_OWN_4_TEXT"
+  column2 = "RENT_OWN_recode.2"
+  
+  # Number of Changes that will be made:
+  a <- data[
+    grep(paste(tolower(vector), collapse="|"),
+         tolower(data[[column1]])), ]
+  
+  a[[column1]]==
+  
+  if (is.na(rep.value)) {
+    changed <- nrow(a) - sum(is.na(a[,column2]))
+  } else {
+    changed <- nrow(a) - sum(a[[column2]] == rep.value, na.rm=T)
+  }
+  
+  # The Actual Assigning
+  data[
+    grep(paste(vec, collapse="|"),
+         as.vector(y)), column2] <- rep.value
+  
+  # Output 
+  cat("=====================", "\n")
+  cat("Single Replacement:", "\n")
+  cat(changed,"changes made.", "\n")
+  cat("=====================", "\n")
+  return(data)
+}
+
+
+replace.multiple.2 <- function(
+    data,
+    column1,column2,
+    vector, rep.value) {
+  
+  data_new <- data
+  
+  for (i in 1:nrow(data_new)) {
+    
+    x <- as.character(data_new[i,column1])
+    
+    if (!is.na(x)) {
+      if(any(x == vector)){
+        data_new[i,column2] <- rep.value
+      }
+    }
+  }
+  
+  changed <- sum(
+    data_new!=data, na.rm=T) + 
+    abs(
+      sum(is.na(data)) - sum(is.na(data_new))
+      )
+  # Output 
+  cat("=====================", "\n")
+  cat("Single Replacement:", "\n")
+  cat(changed,"changes made.", "\n")
+  cat("=====================", "\n")
+
+  return(data_new)
+}
 
 
 ########## Confidence Intervals ##########
@@ -51,7 +123,7 @@ upper.CI <- function(x){
 recode.numbers <- function(
     data,
     column, 
-    maximum = 999) {
+    maximum = 1000) {
   
   ##### Error Statement #####
   if (is.numeric(maximum) == FALSE){
@@ -72,7 +144,7 @@ recode.numbers <- function(
   ##### Loop #####
   for (i in 1:nrow(new_data)){
     
-    a <- as.character(new_data[i, column])
+    a <- gsub(",", ".", as.character(new_data[i, column]))
     
     # NAs:
     if (is.na(a)) {
@@ -107,11 +179,11 @@ recode.numbers <- function(
         {new_data[i,new_column] <- 0}
         
         else {
-          d.list <- data.frame(number.range = 0:maximum)
+          d.list <- data.frame(number.range = c(0:maximum,0.5:(maximum+0.5)))
           dist_m <- data.frame(stringdist::stringdistmatrix(d[,1], d.list$number.range))
           dist_m$minID <- apply(dist_m, 1, which.min)
           d$correct <- d.list$number.range[dist_m$minID]
-          new_data[i,new_column] <- mean(d$correct[d$correct > 1])
+          new_data[i,new_column] <- mean(d$correct[d$correct > 0])
         }
       }
       
@@ -125,11 +197,11 @@ recode.numbers <- function(
           if (any(d[,1]==0)) {
             new_data[i,new_column] <- 0
           } else {
-            d.list <- data.frame(number.range = 0:maximum)
+            d.list <- data.frame(number.range = c(0:maximum,0.5:(maximum+0.5)))
             dist_m <- data.frame(stringdist::stringdistmatrix(d[,1], d.list$number.range))
             dist_m$minID <- apply(dist_m, 1, which.min)
             d$correct <- d.list$number.range[dist_m$minID]
-            new_data[i,new_column] <- mean(d$correct[d$correct > 1])
+            new_data[i,new_column] <- mean(d$correct[d$correct > 0])
           }
         } 
         
@@ -139,11 +211,11 @@ recode.numbers <- function(
           if (any(d[,1]==0)) {
             new_data[i,new_column] <- 0
           } else {
-            d.list <- data.frame(number.range = 0:maximum)
+            d.list <- data.frame(number.range = c(0:maximum,0.5:(maximum+0.5)))
             dist_m <- data.frame(stringdist::stringdistmatrix(d[,1], d.list$number.range))
             dist_m$minID <- apply(dist_m, 1, which.min)
             d$correct <- d.list$number.range[dist_m$minID]
-            new_data[i,new_column] <- mean(d$correct[d$correct > 1])
+            new_data[i,new_column] <- mean(d$correct[d$correct > 0])
           }
         }
       }
@@ -268,7 +340,7 @@ recode.text.vector <- function (
         
         # Step 3: Assigning
         new_data[i,new_column] <- names(x[which(step2)])
-        }
+      }
       
       # Counter:
       counter.categorization_step1 <- 
@@ -420,6 +492,30 @@ recode.text.list <- function (
   
 }
 
+########## Converting Dataframe ##########
+###* Converting the Data Frame Variables
+## 
+convert.dataframe <- function(data) {
+  
+  ##### Factor Columns #####
+  factor.columns <- 
+    names(data)[which(sapply(data, is.factor))]
+  
+  ##### Loop #####
+  for (names in names(data)) {
+    
+    if (any(names %in% factor.columns)) {
+      data[names] <- 
+        labelled::to_factor(data[[names]])
+    }
+    
+    else {
+      data[names] <- 
+        as.numeric(data[[names]])
+    }
+  }
+  return(data)
+}
 
 ##### Reliability #####
 
@@ -450,7 +546,7 @@ investigate.r <- function(
         parse(text = as.character(list[i])))
       # Naming
       reliable[i, "Scale"] <- 
-        paste(list[i])
+        paste(names(list)[i])
     }
     
     ##### List #####
@@ -493,24 +589,24 @@ investigate.r <- function(
 
 ##### Formula #####
 create.formula <- function(
-    data,
     list,
-    elements) {
+    elements = 1:length(list)) {
   
   ##### Setup #####
   formulize <- formula()
   
-  
   ##### Loop #####
   for (i in 1:length(elements)) {
     formulize[i] <- paste(
-      names(list[elements[i]]), "=~", 
-      paste0(names(data_fa[,list[[elements[i]]]]), 
+      names(list[i]), 
+      "=~", 
+      paste0(list[[elements[i]]], 
              collapse = " + "))
   }
   return(paste(formulize, collapse = " \n "))
   
 }
+
 
 ########## Loadings Plot ##########
 loading.plot <- function(
@@ -684,3 +780,96 @@ investigate.cfa <- function(
     return(results)
   }
 }
+
+########## Fix Labels ##########
+fix.Qualtrics.labels <- function(data){
+  
+  list <- vector("list", 100)
+  counter <- 1
+    
+    for (col_name in colnames(data)) {
+      
+      # For Assigning a Label
+      x <- strsplit(attributes(
+        data[[col_name]])$label," - ")[[1]][2]
+      
+      # For List
+      y <- strsplit(attributes(
+        data[[col_name]])$label," - ")[[1]][1]
+      
+      if (haven::is.labelled(data[[col_name]]) & 
+          !is.na(x) & 
+          x != "Selected Choice"){
+        
+        # Assigning
+        attributes(data[[col_name]])$label <- x
+        
+        
+        # List 
+        names(list)[counter] <- col_name
+        list[[counter]] <- y
+        counter <- counter + 1
+        
+      }
+      
+    }
+  list.2 <- vector("list",
+                   length(unique(list))-1)
+  
+  for (i in 1:length(list.2)){
+    names(list.2)[i] <- unique(list)[[i]]
+    list.2[[i]] <- names(list[list==unique(list)[[i]]])
+  }
+  return(list(data,list.2))
+}
+
+
+##### give.label_mean #####
+give.label_mean <- function(
+    list,
+    sub_scale = FALSE,
+    sub_scale_index = NULL){
+  
+  if (sub_scale == TRUE & is.null(sub_scale_index)){
+    stop("You have selected 'sub_scale = TRUE, but the 'sub_scale_index' is unspecified.")
+  }
+  paste()
+  if (sub_scale == TRUE){
+    # Scale Name 
+    new_name <- paste(
+      names(list)[sub_scale_index], 
+      collapse = " & ")
+    
+    # Number of items 
+    number_of_items <- vector()
+    for (i in 1:length(sub_scale_index)){
+      number_of_items[i] <- length(list[[sub_scale_index[i]]])
+    }
+    
+    scale_name <- paste(
+      new_name,
+      " (",
+      sum(number_of_items),
+      " items aggregated)",
+      sep = "")
+  } 
+  
+  else {
+    if (is.null(attributes(list)[["scale_name"]]) ){
+      stop("Please assign attributes(.)$scale_name to your specified list.",
+           "\n",
+           "  Or, if you intend to name a sub-scale, specify 'sub_scale = TRUE'.")
+    } else {
+      scale_name <- paste(
+        attributes(list)[["scale_name"]],
+        " (",
+        length(unlist(list, use.names=FALSE)),
+        " items aggregated)",
+        sep = "")
+    }
+  }
+  return(scale_name)
+}
+
+
+
