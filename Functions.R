@@ -1,6 +1,7 @@
 
 ########## Single Replacement ##########
 replace.single <- function(
+    data,
     column1, column2, 
     value, rep.value) {
   
@@ -19,13 +20,14 @@ replace.single <- function(
   }
   
   # The Actual Assigning
-  data[which(data[,column1] == value), column2] <<- rep.value
+  data[which(data[,column1] == value), column2] <- rep.value
   
   # Output 
   cat("=====================", "\n")
   cat("Single Replacement:", "\n")
   cat(changed,"changes made.", "\n")
   cat("=====================", "\n")
+  return(data)
 }
 
 
@@ -33,7 +35,7 @@ replace.single <- function(
 ########## Multiple Replacement ##########
 
 
-replace.multiple <- function(
+replace.m <- function(
     data,
     column1, column2,
     vector, rep.value) {
@@ -71,7 +73,7 @@ replace.multiple <- function(
 }
 
 
-replace.multiple.2 <- function(
+replacing <- function(
     data,
     column1,column2,
     vector, rep.value) {
@@ -235,7 +237,8 @@ recode.text.vector <- function (
     column, 
     x, 
     Listing = FALSE,
-    JW.threshold = 0.9) {
+    JW.threshold_step1 = 0.98,
+    JW.threshold_step2 = 0.90) {
   
   ##### Language Fix #####
   unwanted_array = list(
@@ -323,7 +326,7 @@ recode.text.vector <- function (
     # Vector to Compare
     
     # Step 1
-    else if (max(jarowinkler(a0, b0)) > 0.95){
+    else if (max(jarowinkler(a0, b0)) > JW.threshold_step1){
       if (Listing == FALSE) {
         new_data[i, new_column] <- b0[which.max(jarowinkler(a0, b0))]
       }
@@ -349,7 +352,7 @@ recode.text.vector <- function (
      
     
     # Step 2
-    else if (max(jarowinkler(a1, b1)) > JW.threshold){
+    else if (max(jarowinkler(a1, b1)) > JW.threshold_step2){
       
       if (Listing == FALSE) {
         new_data[i, new_column] <- b0[which.max(jarowinkler(a1, b1))]
@@ -392,7 +395,8 @@ recode.text.vector <- function (
   cat(counter.categorization_step2, "cases were categorized on Step 2", "\n")
   cat(counter.uncategorized, "cases could not be categorized", "\n")
   cat("--", "\n")
-  cat("Jaro-winkler Distance Threshold", JW.threshold, "\n")
+  cat("Jaro-winkler Distance Threshold (Step 1):", JW.threshold_step1, "\n")
+  cat("Jaro-winkler Distance Threshold (Step 2):", JW.threshold_step2, "\n")
   cat("=====================")
   return(new_data)
 }
