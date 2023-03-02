@@ -788,7 +788,7 @@ investigate.cfa <- function(
 ########## Fix Labels ##########
 fix.Qualtrics.labels <- function(data){
   
-  list <- vector("list", 100)
+  list <- vector("list", 1000)
   counter <- 1
     
     for (col_name in colnames(data)) {
