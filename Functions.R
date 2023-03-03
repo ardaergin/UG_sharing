@@ -640,7 +640,7 @@ investigate.efa <- function(
     items.named = FALSE){
   
   # Correlation Matrix
-  corr_matrix <- stats::cor(data_fa)
+  corr_matrix <- stats::cor(data)
   
   # Data Frame
   df <- as.data.frame(matrix(nrow = 4,
@@ -837,7 +837,7 @@ give.label_mean <- function(
   if (sub_scale == TRUE & is.null(sub_scale_index)){
     stop("You have selected 'sub_scale = TRUE, but the 'sub_scale_index' is unspecified.")
   }
-  paste()
+  
   if (sub_scale == TRUE){
     # Scale Name 
     new_name <- paste(
@@ -875,5 +875,46 @@ give.label_mean <- function(
   return(scale_name)
 }
 
+
+
+scale.mean <- function(
+    data,
+    var_name,
+    list,
+    sub_scale = FALSE,
+    sub_scale_index = NULL){
+  
+  ##### Error #####
+  if (sub_scale == TRUE & is.null(sub_scale_index)){
+    stop("You have selected 'sub_scale = TRUE, but the 'sub_scale_index' is unspecified.")
+  }
+  
+  ##### Name #####
+  if (sub_scale == FALSE) {
+    item_names <- unlist(list, use.names = FALSE)
+  } else {
+    item_names <- list[[sub_scale_index]]
+  }
+  
+  ##### Calculation #####
+  data <- data %>% 
+    dplyr::rowwise() %>% 
+    dplyr::mutate(
+      # Variable Name:
+      !!var_name := na_if(
+        mean(c_across(dplyr::all_of(
+          # Item Names:
+          item_names)), 
+          na.rm = TRUE), 
+        "NaN"))
+  
+  # Label
+  attributes(data[[var_name]])$label <- 
+    give.label_mean(list,
+                    sub_scale, sub_scale_index)
+  
+  ##### Output #####
+  return(data)
+}
 
 
