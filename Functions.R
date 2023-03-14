@@ -128,7 +128,7 @@ recode.numbers <- function(
     maximum = 1000) {
   
   ##### Error Statement #####
-  if (is.numeric(maximum) == FALSE){
+  if (base::isFALSE(is.numeric(maximum))){
     stop("The 'maximum' value has to be a numeric value.")
   }
   
@@ -154,8 +154,10 @@ recode.numbers <- function(
     }
     
     # Normal Numeric Values:
-    else if (is(tryCatch(as.numeric(a),warning = function(w) w),
-                "warning")==FALSE){
+    else if (base::isFALSE(
+      tryCatch(
+        as.numeric(a),
+        warning = function(w) w),"warning")){
       if (as.numeric(a) < maximum)
       {new_data[i,new_column] <- as.numeric(a)} 
       else 
@@ -163,7 +165,7 @@ recode.numbers <- function(
     }
     
     # No Numbers at all:
-    else if (grepl(paste(0:9, collapse="|"), a) == FALSE)
+    else if (base::isFALSE(grepl(paste(0:9, collapse="|"), a)))
     {new_data[i,new_column] <- NA}
     
     # Text that has a number within
@@ -173,8 +175,10 @@ recode.numbers <- function(
       if (grepl("-", paste(a), fixed = TRUE)){
         d <- as.data.frame(strsplit(a, "-"))
         
-        if(is(tryCatch(as.numeric(d[,1]),
-                       warning=function(w) w), "warning")==FALSE) 
+        if(base::isFALSE(
+          tryCatch(
+            as.numeric(d[,1]),
+            warning=function(w) w), "warning")) 
         {new_data[i,new_column] <- mean(as.numeric(d[,1]))} 
         
         else if (any(d[,1] == 0)) 
@@ -208,7 +212,8 @@ recode.numbers <- function(
         } 
         
         # 2b) No spaces at all (e.g., 8h)
-        else if (grepl(" ", paste(a), fixed = TRUE)==FALSE) {
+        else if (base::isFALSE(
+          grepl(" ", paste(a), fixed = TRUE))) {
           d <- as.data.frame(a)
           if (any(d[,1]==0)) {
             new_data[i,new_column] <- 0
@@ -280,7 +285,7 @@ recode.text.vector <- function (
   
   
   ##### Setup: Vector #####
-  if (Listing == FALSE) {
+  if (base::isFALSE(Listing)) {
     # Vector as is
     b0 <- x
     # Vector with:
@@ -520,73 +525,186 @@ convert.dataframe <- function(data) {
   }
   return(data)
 }
-
 ##### Reliability #####
+### 1 ###
+rely <- function(
+    data, 
+    x) {
+  # N = 1
+  if (length(x) == 1) {
+    NA
+  } 
+  
+  # SPEARMAN-BROWN
+  else if (length(x) == 2) {
+    r <- round(
+      splithalfr::spearman_brown(
+        as.vector(na.omit(data[x[1]])),
+        as.vector(na.omit(data[x[2]]))),3)
+    return(r)
+  } 
+  
+  # ALPHA
+  else {
+    r <- round(
+      psych::alpha(
+        data[,x]
+      )[["total"]][["raw_alpha"]], 3)
+    return(r)
+  }
+}
 
-# Either putting a vector of many scales
-# or list containing different dimensions of a scale
-
-investigate.r <- function(
+### 2 ###
+table_scales <- function(
     data,
-    list,
-    many.scales = FALSE) {
+    x) {
   
   ##### Setup #####
   # Data Frame
   reliable <- as.data.frame(matrix(
-    nrow = length(list),
-    ncol = 3))
+    nrow = length(unlist(x, recursive = F)) + 
+           length(x),
+    ncol = 5))
   colnames(reliable) <- c(
-    "Scale","Alpha","Spearman_Brown")
+    "Scale","N","Reliability","Mean","SD")
   
+  # Counter
+  counter <- 1
+  
+  ##### Subset & Convert Data #####
+  everything <- unique(
+    unlist(x, use.names=F))
+  
+  ##### Subset & Convert Data #####
+  d_scales <- data[,everything]
+  
+  d_analysis <- d_scales %>% convert.dataframe()
   
   ##### Loop #####
-  for (i in 1:length(list)) {
+  for (i in 1:length(x)) {
     
-    # Setup
-    ##### Vector #####
-    if (many.scales == TRUE) {
-      x <- eval(
-        parse(text = as.character(list[i])))
-      # Naming
-      reliable[i, "Scale"] <- 
-        paste(names(list)[i])
-    }
+    ##### Total Scale #####
+    # 1) Naming
+    name <- paste(names(x)[i], "(Total Scale)")
+    reliable[counter, "Scale"] <- name
     
-    ##### List #####
-    else {
-      x <- names(
-        data[
-          ,as.vector(unlist(list[[i]]))])
-      # Naming
-      reliable[i, "Scale"] <- 
-        paste(names(list[i]))
-    }
+    # 2) Select Items
+    total_items <- unique(
+      unlist(x[[i]], use.names=F))
     
-    # N = 1
-    if (length(x) == 1) {
-      NULL
-    } 
+    # 3) Reliability
+    r <- d_analysis %>% rely(total_items)
+    reliable[counter, "Reliability"] <- r
     
-    ##### Reliability #####
-    # SPEARMAN-BROWN
-    else if (length(x) == 2) {
-      reliable[i, "Spearman_Brown"] <- 
-        round(splithalfr::spearman_brown(
-          as.vector(na.omit(data[x[1]])),
-          as.vector(na.omit(data[x[2]]))),3)
-    } 
+    # 4) N
+    reliable[counter, "N"] <- length(total_items)
     
-    # ALPHA
-    else {
-      reliable[i, "Alpha"] <- 
-        round(psych::alpha(
-          data[,x]
-        )[["total"]][["raw_alpha"]],3)
+    # 5) Mean & SD
+    d_analysis <- d_analysis %>% scale.mean(
+      name,
+      x[[i]])
+    
+    ## Mean
+    m <- round(mean(d_analysis[[name]],na.rm=T),2)
+    reliable[counter, "Mean"] <- m
+    ## SD
+    s <- round(sd(d_analysis[[name]],na.rm=T),2)
+    reliable[counter, "SD"] <- s
+    
+    # 6) Counter
+    counter <- counter + 1
+    
+    ##### Sub-scales Loop #####
+    if (length(x[[i]]) != 1){
+      for (j in 1:length(x[[i]])) {
+        # 1) Naming
+        name <- paste(names(x[[i]][j]),"(Subscale)")
+        reliable[counter, "Scale"] <- name
+        
+        # 2) Select Items
+        items <- unlist(x[[i]][j], use.names=F)
+        
+        # 3) Reliability
+        r <- d_analysis %>% rely(items)
+        reliable[counter, "Reliability"] <- r
+        
+        # 4) N
+        reliable[counter, "N"] <- length(items)
+        
+        # 5) Mean & SD
+        d_analysis <- d_analysis %>% scale.mean(
+          name,
+          x[[i]],TRUE,j)
+        ## Mean
+        m <- round(mean(d_analysis[[name]],na.rm=T),2)
+        reliable[counter, "Mean"] <- m
+        ## SD
+        s <- round(sd(d_analysis[[name]],na.rm=T),2)
+        reliable[counter, "SD"] <- s
+          
+        # 6) Counter
+        counter <- counter + 1
+      }
     }
   }
-  return(knitr::kable(reliable) %>% 
-           kableExtra::kable_styling())
+  # DF
+  reliable_2 <- reliable[
+    apply(reliable,
+          1, function(x){!all(is.na(x))}),]
+  # Correlation Table
+  a <- d_analysis[
+    ,grep("Subscale|Scale",colnames(d_analysis))]
+  b <- a[complete.cases(a),]
+  corr_matrix <- as.data.frame(
+    round(stats::cor(b),2))
+  
+  final <- cbind(reliable_2, corr_matrix)
+  
+  # Output Formatting
+  ## Correlation Colours
+  color_correl <- formatter(
+    "span",
+    style = x ~ style(
+      display = "block", 
+      color = "black",
+      "border-radius" = "4px",
+      "padding-right" = "4px",
+      "background-color" = 
+        ifelse(x < -0.4, "orange3", 
+        ifelse(x < -0.2 & x >= -0.4, "orange",
+        ifelse(x < 0 & x >= -0.2, "moccasin",
+        ifelse(x > 0 & x <= 0.2, "lightcyan",
+        ifelse(x > 0.2 & x <= 0.4, "lightskyblue",
+        ifelse(x > 0.4 & x <= 0.6, "dodgerblue",
+        ifelse(x > 0.6 & x <= 0.8, "royalblue",
+        ifelse(x > 0.8 & x < 1, "darkblue",
+        ifelse(x == 1, "grey", NA)))))))))))
+  
+  ## Reliability Colours
+  color_rely <- formatter(
+    "span",
+    style = x ~ style(
+      display = "block", 
+      font.weight = "bold",
+      color = "black", 
+      "border-radius" = "4px",
+      "padding-right" = "4px",
+      "background-color" = 
+        ifelse(x < 0.5, "darkred", 
+        ifelse(x >= 0.5 & x < 0.6, "red",        
+        ifelse(x >= 0.6 & x < 0.7, "lightpink",
+        ifelse(x >= 0.7 & x < 0.8, "lightgreen",
+        ifelse(x >= 0.8 & x < 0.9, "green",
+        ifelse(x >= 0.9 & x <= 1, "darkgreen",NA))))))))
+  
+  ## Creating the table
+  return(
+    formattable(
+      final, 
+      list(
+        area(col = 3:3) ~ color_rely,
+        area(col = 6:ncol(final)) ~ color_correl),
+      table.attr = 'style="font-size: 11px; font-family: Cambria";\"'))
 }
 
 
@@ -625,7 +743,7 @@ loading.plot <- function(
   legend('topright', 
          bty = 'n',
          pch = 'o', 
-         col = 1:ncol(behave), 
+         col = 1:ncol(data), 
          attr(model$loadings, 'dimnames')[[1]], 
          title = "Variables",
          cex = 0.6)
@@ -916,5 +1034,140 @@ scale.mean <- function(
   ##### Output #####
   return(data)
 }
+
+
+
+########## Overview Scales ##########
+overview.scales <- function(
+    data,
+    vector,
+    group.var){
+  
+  
+  ##### Subset #####
+  d_scales <- data[, c(vector, group.var)]
+  
+  ##### Convert DF #####
+  d_analysis <- d_scales %>% convert.dataframe()
+  
+  ##### Name Labels #####
+  Labels <- lapply(
+    vector,
+    function(x){
+      as.formula(
+        paste(x,
+              " ~ ",
+              "'", 
+              attributes(data[[x]])$label,
+              "'",
+              sep = ""))
+      })
+  
+  ##### Value Labels #####
+  # Creating a variable list 
+  scales_4_tbl <- list()
+  for (name in vector) {
+    scales_4_tbl[[name]] <- 'continuous2'
+  }
+  
+  # Creating Summary Table
+  return(
+    d_analysis %>% tbl_summary(
+      
+      # This:
+      type = scales_4_tbl,
+      
+      ##
+      statistic = list(all_continuous() ~ "{mean} ({sd})"),
+      ##
+      missing_text = "Missing",
+      ##
+      digits = list(all_continuous() ~ 2,
+                    all_categorical() ~ 1),
+      # This:
+      label = Labels,
+      # This:
+      by = !!sym(group.var)) %>% 
+      ##
+      add_overall() %>% 
+      bold_labels() %>% italicize_levels() %>% 
+      modify_header(label ~ "**Variable**")  %>% 
+      # This:
+      modify_spanning_header(
+        paste("stat",
+              1:length(levels(data[[group.var]])),
+              sep = "_")
+        ~ paste0("**",group.var,"**")) %>%
+    modify_caption("**Table for Descriptives**"))
+}
+
+########## Graph Scales ##########
+graph.scales <- function(
+    data,
+    vector,
+    group_var,
+    control_group){
+  
+  ##### Subset #####
+  d_scales <- data[, c(vector, group_var)]
+  
+  ##### Convert DF #####
+  d_analysis <- d_scales %>% convert.dataframe()
+  
+  #####  #####
+  for (i in 1:(ncol(d_analysis)-1)){
+    
+    DStats <- d_analysis %>% 
+      dplyr::group_by(!!sym(group_var)) %>% 
+      dplyr::summarise(
+        Mean = mean(
+          !!sym(colnames(d_analysis[i])), 
+          na.rm=TRUE),
+        SD = sd(
+          !!sym(colnames(d_analysis[i])), 
+          na.rm=TRUE),
+        N = length(
+          !!sym(colnames(d_analysis[i]))),
+        CI_L = Mean - (SD * 1.96)/sqrt(N),
+        CI_U = Mean + (SD * 1.96)/sqrt(N))
+    
+    print(
+      
+      ggplot(d_analysis, 
+             aes(x = !!sym(group_var), 
+                 y = !!sym(colnames(d_analysis[i])), 
+                 fill = !!sym(group_var))) + 
+        
+        geom_violin() +
+        
+        stat_summary(
+          fun = "mean", geom = "point", 
+          shape = 19, size = 2, color = "black") + 
+        
+        geom_errorbar(
+          DStats, 
+          mapping = aes(
+            x = !!sym(group_var),
+            ymin = CI_L, 
+            ymax = CI_U), 
+          width = 0.3, 
+          inherit.aes = FALSE) +
+        
+        ggtitle(
+          paste("Responses for", 
+                colnames(d_analysis[i]))) +
+        geom_hline(
+          yintercept = as.numeric(
+            DStats[DStats[,group_var]==control_group, "Mean"]),
+          linetype = "dashed", color = "red2") + 
+        geom_hline(
+          yintercept = mean(d_analysis[,i],na.rm=T),
+          color = "black") +
+        
+        coord_cartesian(ylim = c(1,7))
+    )
+  }
+}
+
 
 
