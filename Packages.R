@@ -65,3 +65,12 @@ library(report)
 
 ##### Web Scraping #####
 library(rvest)
+
+##### Themes #####
+# devtools::install_github("max-alletsee/rstudio-themes")
+library(rstudiothemes) 
+# install.packages(
+#   "rsthemes", 
+#   repos = c(gadenbuie = 'https://gadenbuie.r-universe.dev', getOption("repos")))
+library(rsthemes)
+
