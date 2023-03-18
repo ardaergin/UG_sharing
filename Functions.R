@@ -154,10 +154,11 @@ recode.numbers <- function(
     }
     
     # Normal Numeric Values:
-    else if (base::isFALSE(
-      tryCatch(
-        as.numeric(a),
-        warning = function(w) w),"warning")){
+    else if (
+      !is(
+        tryCatch(as.numeric(a),warning=function(w) w),
+        "warning")) {
+      
       if (as.numeric(a) < maximum)
       {new_data[i,new_column] <- as.numeric(a)} 
       else 
@@ -175,10 +176,10 @@ recode.numbers <- function(
       if (grepl("-", paste(a), fixed = TRUE)){
         d <- as.data.frame(strsplit(a, "-"))
         
-        if(base::isFALSE(
-          tryCatch(
-            as.numeric(d[,1]),
-            warning=function(w) w), "warning")) 
+        if(
+          !is(
+            tryCatch(as.numeric(d[,1]),warning=function(w) w), 
+            "warning")) 
         {new_data[i,new_column] <- mean(as.numeric(d[,1]))} 
         
         else if (any(d[,1] == 0)) 
@@ -950,7 +951,8 @@ fix.Qualtrics.labels <- function(data){
 give.label_mean <- function(
     list,
     sub_scale = FALSE,
-    sub_scale_index = NULL){
+    sub_scale_index = NULL,
+    action = "aggregated"){
   
   if (sub_scale == TRUE & is.null(sub_scale_index)){
     stop("You have selected 'sub_scale = TRUE, but the 'sub_scale_index' is unspecified.")
@@ -972,7 +974,9 @@ give.label_mean <- function(
       new_name,
       " (",
       sum(number_of_items),
-      " items aggregated)",
+      " items ",
+      action,
+      ")",
       sep = "")
   } 
   
@@ -986,7 +990,9 @@ give.label_mean <- function(
         attributes(list)[["scale_name"]],
         " (",
         length(unlist(list, use.names=FALSE)),
-        " items aggregated)",
+        " items ",
+        action,
+        ")",
         sep = "")
     }
   }
@@ -1000,7 +1006,8 @@ scale.mean <- function(
     var_name,
     list,
     sub_scale = FALSE,
-    sub_scale_index = NULL){
+    sub_scale_index = NULL,
+    action = "aggregated"){
   
   ##### Error #####
   if (sub_scale == TRUE & is.null(sub_scale_index)){
@@ -1028,8 +1035,10 @@ scale.mean <- function(
   
   # Label
   attributes(data[[var_name]])$label <- 
-    give.label_mean(list,
-                    sub_scale, sub_scale_index)
+    give.label_mean(list = list,
+                    sub_scale = sub_scale, 
+                    sub_scale_index = sub_scale_index,
+                    action = action)
   
   ##### Output #####
   return(data)
@@ -1114,7 +1123,7 @@ graph.scales <- function(
   ##### Convert DF #####
   d_analysis <- d_scales %>% convert.dataframe()
   
-  #####  #####
+  #####  Loop #####
   for (i in 1:(ncol(d_analysis)-1)){
     
     DStats <- d_analysis %>% 
@@ -1168,6 +1177,8 @@ graph.scales <- function(
     )
   }
 }
+
+
 
 
 
